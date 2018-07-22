@@ -1,0 +1,191 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+  name: cluster-autoscaler
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: cluster-autoscaler
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+rules:
+- apiGroups: [""]
+  resources: ["events","endpoints"]
+  verbs: ["create", "patch"]
+- apiGroups: [""]
+  resources: ["pods/eviction"]
+  verbs: ["create"]
+- apiGroups: [""]
+  resources: ["pods/status"]
+  verbs: ["update"]
+- apiGroups: [""]
+  resources: ["endpoints"]
+  resourceNames: ["cluster-autoscaler"]
+  verbs: ["get","update"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["watch","list","get","update"]
+- apiGroups: [""]
+  resources: ["pods","services","replicationcontrollers","persistentvolumeclaims","persistentvolumes"]
+  verbs: ["watch","list","get"]
+- apiGroups: ["extensions"]
+  resources: ["replicasets","daemonsets"]
+  verbs: ["watch","list","get"]
+- apiGroups: ["policy"]
+  resources: ["poddisruptionbudgets"]
+  verbs: ["watch","list"]
+- apiGroups: ["apps"]
+  resources: ["statefulsets"]
+  verbs: ["watch","list","get"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["create"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["cluster-autoscaler-status"]
+  verbs: ["delete","get","update"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-autoscaler
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-autoscaler
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler
+    namespace: kube-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cluster-autoscaler
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler
+    namespace: kube-system
+
+---
+apiVersion: v1
+data:
+  TenancyOCID: <base64-encoded-tenancyOCI>
+  UserOCID: <base64-encoded-userOCID>
+  KeyFingerprint: <base64-encode-keyFingerprint>
+  Region: <base64-encoded-region>
+  PrivateKey: <base64-encoded-privateKey>     
+  PrivateKeyPassphrase: <base64-encoded-privateKeyPassphrase>      
+  ClusterName: <base64-encoded-clustername>
+kind: Secret
+metadata:
+  name: cluster-autoscaler-oke
+  namespace: kube-system
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: cluster-autoscaler
+  name: cluster-autoscaler
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cluster-autoscaler
+  template:
+    metadata:
+      labels:
+        app: cluster-autoscaler
+    spec:
+      serviceAccountName: cluster-autoscaler
+      containers:
+      - image: k8s.gcr.io/cluster-autoscaler:{{ ca_version }}
+        imagePullPolicy: Always
+        name: cluster-autoscaler
+        resources:
+          limits:
+            cpu: 100m
+            memory: 300Mi
+          requests:
+            cpu: 100m
+            memory: 300Mi
+        command:
+        - ./cluster-autoscaler
+        - --v=3
+        - --logtostderr=true
+        - --cloud-provider=oke
+        - --skip-nodes-with-local-storage=false
+        - --nodes=3:10:nodepool1
+        env:
+        - name: OCI_TenancyOCID
+          valueFrom:
+            secretKeyRef:
+              key: TenancyOCID
+              name: cluster-autoscaler-oke
+        - name: OCI_UserOCID
+          valueFrom:
+            secretKeyRef:
+              key: UserOCID
+              name: cluster-autoscaler-oke
+        - name: OCI_KeyFingerprint
+          valueFrom:
+            secretKeyRef:
+              key: KeyFingerprint
+              name: cluster-autoscaler-oke
+        - name: OCI_Region
+          valueFrom:
+            secretKeyRef:
+              key: Region
+              name: cluster-autoscaler-oke
+        - name: OCI_PrivateKey
+          valueFrom:
+            secretKeyRef:
+              key: PrivateKey
+              name: cluster-autoscaler-oke
+        - name: OCI_PrivateKeyPassphrase 
+          valueFrom:
+            secretKeyRef:
+              key: PrivateKeyPassphrase 
+              name: cluster-autoscaler-oke
+        - name: OKE_CLUSTER_NAME
+          valueFrom:
+            secretKeyRef:
+              key: ClusterName
+              name: cluster-autoscaler-oke
+      restartPolicy: Always
