@@ -75,26 +75,16 @@ func CreateOKEManager(configReader io.Reader, discoveryOpts cloudprovider.NodeGr
 			return nil, err
 		}
 	} else {
-		cfg.Cloud = os.Getenv("ARM_CLOUD")
-		cfg.SubscriptionID = os.Getenv("ARM_SUBSCRIPTION_ID")
-		cfg.ResourceGroup = os.Getenv("ARM_RESOURCE_GROUP")
-		cfg.TenantID = os.Getenv("ARM_TENANT_ID")
-		cfg.AADClientID = os.Getenv("ARM_CLIENT_ID")
-		cfg.AADClientSecret = os.Getenv("ARM_CLIENT_SECRET")
-		cfg.VMType = strings.ToLower(os.Getenv("ARM_VM_TYPE"))
-		cfg.AADClientCertPath = os.Getenv("ARM_CLIENT_CERT_PATH")
-		cfg.AADClientCertPassword = os.Getenv("ARM_CLIENT_CERT_PASSWORD")
-		cfg.Deployment = os.Getenv("ARM_DEPLOYMENT")
-		cfg.ClusterName = os.Getenv("AZURE_CLUSTER_NAME")
-		cfg.NodeResourceGroup = os.Getenv("AZURE_NODE_RESOURCE_GROUP")
-
-		useManagedIdentityExtensionFromEnv := os.Getenv("ARM_USE_MANAGED_IDENTITY_EXTENSION")
-		if len(useManagedIdentityExtensionFromEnv) > 0 {
-			cfg.UseManagedIdentityExtension, err = strconv.ParseBool(useManagedIdentityExtensionFromEnv)
-			if err != nil {
-				return nil, err
-			}
-		}
+		
+		cfg.TenantID = os.Getenv("TenantID")
+		cfg.UserOCID = os.Getenv("UserOCID")
+		cfg.KeyFingerprint = os.Getenv("KeyFingerprint")
+		cfg.Region = strings.ToLower(os.Getenv("Region"))
+		cfg.PrivateKey = os.Getenv("PrivateKey")
+		cfg.PrivateKeyPassphrase = os.Getenv("PrivateKeyPassphrase")
+		cfg.Deployment = os.Getenv("Deployment")
+		cfg.ClusterName = os.Getenv("ClusterName")
+		
 	}
 	cfg.TrimSpace()
 
